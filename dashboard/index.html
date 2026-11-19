@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Zero Trust Access Simulator — SOC Console</title>
+<style>
+  :root {
+    --bg: #F5F6FB;
+    --sidebar: #1B2352;
+    --sidebar-hover: #262F63;
+    --sidebar-active: #2E3874;
+    --surface: #FFFFFF;
+    --surface-alt: #F1F3FA;
+    --border: #E6E8F2;
+    --text: #1B2140;
+    --muted: #6B7399;
+    --amber: #E08A2E;
+    --amber-bg: #FDF1E0;
+    --green: #158F5C;
+    --green-bg: #E6F7EF;
+    --red: #C23A54;
+    --red-bg: #FCEAEE;
+    --blue: #3959C9;
+    --blue-bg: #EAEFFC;
+    --shadow: 0 1px 2px rgba(27,33,64,0.06), 0 4px 14px rgba(27,33,64,0.05);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Calibri, "Segoe UI", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13.5px;
+  }
+  .app { display: grid; grid-template-columns: 224px 1fr; min-height: 100vh; }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar {
+    background: var(--sidebar);
+    padding: 20px 14px;
+    display: flex;
+    flex-direction: column;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; padding: 0 6px; }
+  .brand-badge {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--amber), #B96A18);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; color: #1B2352; font-size: 15px; flex-shrink: 0;
+  }
+  .brand-text { font-weight: bold; font-size: 14px; line-height: 1.2; color: #FFFFFF; }
+  .brand-sub { font-size: 10px; color: #A6ADD9; }
+  .nav { margin-top: 24px; display: flex; flex-direction: column; gap: 3px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px; border-radius: 8px; cursor: pointer;
+    color: #A6ADD9; font-size: 13px; font-weight: bold;
+    user-select: none;
+  }
+  .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .nav-item:hover { background: var(--sidebar-hover); color: #FFFFFF; }
+  .nav-item.active { background: var(--sidebar-active); color: var(--amber); }
+  .nav-item.active svg { stroke: var(--amber); }
+  .sidebar-footer { margin-top: auto; padding: 10px 6px 0; font-size: 11px; color: #7B84BC; }
+  .conn-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #E38598; }
+  .dot.live { background: #4FCE96; box-shadow: 0 0 0 3px rgba(79,206,150,0.25); }
+
+  /* ---------- Main ---------- */
+  .main { padding: 22px 32px 40px; overflow-x: hidden; }
+  .view { display: none; }
+  .view.active { display: block; }
+  .page-title { font-size: 20px; font-weight: bold; margin: 0 0 2px 0; color: var(--text); }
+  .page-sub { font-size: 12.5px; color: var(--muted); margin: 0 0 20px 0; }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+  .kpi {
+    background: var(--surface); border-radius: 10px; box-shadow: var(--shadow);
+    padding: 14px 16px; display: flex; align-items: center; gap: 12px;
+  }
+  .kpi-icon {
+    width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .kpi-icon svg { width: 17px; height: 17px; }
+  .kpi .val { font-size: 22px; font-weight: bold; line-height: 1.1; }
+  .kpi .lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .kpi.green .kpi-icon { background: var(--green-bg); color: var(--green); }
+  .kpi.amber .kpi-icon { background: var(--amber-bg); color: var(--amber); }
+  .kpi.red .kpi-icon { background: var(--red-bg); color: var(--red); }
+  .kpi.blue .kpi-icon { background: var(--blue-bg); color: var(--blue); }
+
+  .grid-2 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; align-items: start; }
+
+  .card {
+    background: var(--surface); border-radius: 10px; box-shadow: var(--shadow);
+    padding: 16px 18px; margin-bottom: 16px;
+  }
+  .card h2 {
+    font-size: 12px; color: var(--muted); margin: 0 0 14px 0;
+    text-transform: uppercase; letter-spacing: 0.5px; font-weight: bold;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th {
+    text-align: left; color: var(--muted); font-weight: bold; font-size: 10.5px;
+    text-transform: uppercase; letter-spacing: 0.3px;
+    padding: 6px 10px; border-bottom: 1px solid var(--border);
+  }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface-alt); }
+  .feed-wrap, .table-wrap { max-height: 520px; overflow-y: auto; overflow-x: auto; }
+
+  .pill {
+    display: inline-block; padding: 3px 10px; border-radius: 10px;
+    font-size: 10.5px; font-weight: bold; letter-spacing: 0.3px;
+  }
+  .pill.ALLOW, .pill.HEALTHY, .pill.ACTIVE { background: var(--green-bg); color: var(--green); }
+  .pill.STEP_UP, .pill.DEGRADED { background: var(--amber-bg); color: var(--amber); }
+  .pill.DENY, .pill.STALE, .pill.TERMINATED { background: var(--red-bg); color: var(--red); }
+  .reason-cell { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+  .mono { font-family: Consolas, monospace; font-size: 11.5px; color: var(--muted); }
+
+  /* ---------- Forms / Console ---------- */
+  label { display: block; font-size: 11.5px; color: var(--muted); margin: 10px 0 4px; font-weight: bold; }
+  input, select {
+    width: 100%; padding: 8px 10px; border-radius: 6px; font-size: 13px;
+    background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: inherit;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--blue); }
+  input::placeholder { color: #A7ACC9; }
+  button {
+    cursor: pointer; border: none; border-radius: 6px; padding: 9px 14px;
+    font-size: 13px; font-family: inherit; font-weight: bold; margin-top: 10px; margin-right: 6px;
+  }
+  button.primary { background: var(--sidebar); color: #FFFFFF; }
+  button.primary:hover { background: var(--sidebar-hover); }
+  button.ghost { background: var(--surface-alt); color: var(--text); border: 1px solid var(--border); }
+  button.ghost:hover { background: #E7E9F5; }
+  button.danger { background: var(--red); color: #FFFFFF; }
+  button.small { padding: 4px 10px; font-size: 11px; margin: 0; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .action-grid button { width: 100%; margin: 0; }
+  .session-info { background: var(--surface-alt); border-radius: 8px; padding: 10px 12px; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .session-info div { margin-bottom: 3px; }
+  .session-info b { color: var(--text); }
+  #responsePanel {
+    background: #171C33; color: #8FE3B0; border-radius: 8px; padding: 12px;
+    font-family: Consolas, monospace; font-size: 11.5px; white-space: pre-wrap; word-break: break-word;
+    max-height: 220px; overflow-y: auto; margin-top: 10px;
+  }
+  .banner { padding: 9px 13px; border-radius: 8px; font-size: 12px; margin-bottom: 10px; font-weight: bold; }
+  .banner.warn { background: var(--amber-bg); color: var(--amber); }
+  .banner.err { background: var(--red-bg); color: var(--red); }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(27,33,64,0.45); display: flex; align-items: center; justify-content: center; z-index: 50; }
+  .modal { background: var(--surface); border-radius: 10px; padding: 22px; width: 320px; box-shadow: 0 10px 40px rgba(27,33,64,0.25); }
+  .modal h3 { margin: 0 0 8px 0; color: var(--text); font-size: 15px; }
+  .modal p { font-size: 12px; color: var(--muted); margin: 0 0 10px 0; }
+  .hidden { display: none !important; }
+
+  canvas { width: 100%; height: 160px; }
+
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 64px 1fr; }
+    .brand-text, .brand-sub, .nav-item span, .sidebar-footer { display: none; }
+    .nav-item { justify-content: center; padding: 11px 0; }
+    .nav-item svg { width: 18px; height: 18px; }
+    .brand { justify-content: center; }
+    .main { padding: 16px; }
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .grid-2 { grid-template-columns: 1fr; }
+    .page-title { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="sidebar">
+    <div class="brand">
+      <div class="brand-badge">ZT</div>
+      <div>
+        <div class="brand-text">Zero Trust Sim</div>
+        <div class="brand-sub">NIST SP 800-207</div>
+      </div>
+    </div>
+
+    <div class="nav">
+      <div class="nav-item active" data-view="overview" onclick="showView('overview')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        <span class="nav-label">Overview</span>
+      </div>
+      <div class="nav-item" data-view="sessions" onclick="showView('sessions')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17.5" cy="9" r="2.4"/><path d="M15.8 14.2c2.6.3 4.7 2.5 4.7 5.3"/></svg>
+        <span class="nav-label">Sessions</span>
+      </div>
+      <div class="nav-item" data-view="devices" onclick="showView('devices')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg>
+        <span class="nav-label">Devices</span>
+      </div>
+      <div class="nav-item" data-view="console" onclick="showView('console')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></svg>
+        <span class="nav-label">Access Console</span>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div>Every request re-verified.<br>Nothing trusted by default.</div>
+      <div class="conn-row"><span class="dot" id="statusDot"></span><span id="statusText">connecting...</span></div>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- OVERVIEW -->
+    <div class="view active" id="view-overview">
+      <div class="page-title">Security Operations Overview</div>
+      <div class="page-sub">Live picture of every access decision the PDP has made — continuous, not point-in-time.</div>
+
+      <div class="kpi-row">
+        <div class="kpi blue">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l2-7 4 14 2-7h6"/></svg></div>
+          <div><div class="val" id="kpiEvents">—</div><div class="lbl">Events (last 50)</div></div>
+        </div>
+        <div class="kpi green">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="m15 12 2 2 4-4"/></svg></div>
+          <div><div class="val" id="kpiActive">—</div><div class="lbl">Active Sessions</div></div>
+        </div>
+        <div class="kpi red">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/></svg></div>
+          <div><div class="val" id="kpiDenies">—</div><div class="lbl">Denies (last 50)</div></div>
+        </div>
+        <div class="kpi amber">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg></div>
+          <div><div class="val" id="kpiDevices">—</div><div class="lbl">Devices Healthy</div></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h2>Live SOC Event Feed</h2>
+          <div class="feed-wrap">
+            <table>
+              <thead><tr><th>Time</th><th>Device</th><th>Request</th><th>Risk</th><th>Decision</th><th>Reason</th></tr></thead>
+              <tbody id="feedBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Decision Mix (last 50)</h2>
+          <canvas id="chart" width="360" height="160"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- SESSIONS -->
+    <div class="view" id="view-sessions">
+      <div class="page-title">Sessions</div>
+      <div class="page-sub">Every session ever issued. An operator can end any of them immediately, active or not.</div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>User</th><th>Role</th><th>Device</th><th>Origin IP</th><th>Risk</th><th>Status</th><th>Last Seen</th><th></th></tr></thead>
+            <tbody id="sessionsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- DEVICES -->
+    <div class="view" id="view-devices">
+      <div class="page-title">Device Posture Inventory</div>
+      <div class="page-sub">Live firewall/AV state and heartbeat freshness — exactly what DevicePostureVector scores on every request.</div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Device ID</th><th>Hostname</th><th>OS</th><th>Firewall</th><th>Antivirus</th><th>Signature</th><th>Heartbeat Age</th><th>Status</th></tr></thead>
+            <tbody id="devicesBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONSOLE -->
+    <div class="view" id="view-console">
+      <div class="page-title">Access Console</div>
+      <div class="page-sub">Sign in as any demo role and exercise the protected endpoints.</div>
+
+      <div class="grid-2">
+        <div>
+          <div class="card" id="loginCard">
+            <h2>Sign In</h2>
+            <div id="loginBanner"></div>
+            <label>Username</label>
+            <input id="username" placeholder="dr_alice / nurse_bob / front_carol / audit_dan">
+            <label>Password</label>
+            <input id="password" type="password" placeholder="Demo@123">
+            <label>Device ID</label>
+            <input id="deviceId" placeholder="printed by agent.exe on startup">
+            <div class="hint">The Posture Agent must be running with a fresh heartbeat, or login is refused.</div>
+            <button class="primary" onclick="login()">Login</button>
+          </div>
+
+          <div class="card hidden" id="sessionCard">
+            <h2>Session</h2>
+            <div class="session-info">
+              <div><b>User:</b> <span id="infoUser"></span> (<span id="infoRole"></span>)</div>
+              <div><b>Device:</b> <span id="infoDevice"></span></div>
+              <div><b>Session:</b> <span id="infoSession" class="mono"></span></div>
+            </div>
+            <div id="sessionBanner"></div>
+            <button class="ghost" onclick="logout()">Logout</button>
+            <button class="danger" onclick="terminateMySession()">Terminate My Session</button>
+          </div>
+        </div>
+
+        <div class="card hidden" id="actionsCard">
+          <h2>Protected Actions</h2>
+          <label>Patient ID (for records / export)</label>
+          <select id="patientId">
+            <option value="101">101 — Grace Kim</option>
+            <option value="102">102 — Marcus Lee</option>
+            <option value="103">103 — Priya Nair</option>
+            <option value="104">104 — Tom Alvarez</option>
+          </select>
+          <div class="action-grid" style="margin-top:10px;">
+            <button class="ghost" onclick="callAction('GET','/api/public/info')">Public Info</button>
+            <button class="ghost" onclick="callAction('GET','/api/patients/list')">Patient List</button>
+            <button class="ghost" onclick="callAction('GET', recordsPath())">View Records</button>
+            <button class="ghost" onclick="callAction('POST', exportPath())">Export PDF</button>
+            <button class="ghost" onclick="callAction('GET','/api/audit/events')">Audit Events</button>
+          </div>
+          <div id="responsePanel">Response will appear here.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="stepUpModal">
+  <div class="modal">
+    <h3>Step-Up Verification Required</h3>
+    <p id="stepUpReason"></p>
+    <label>Enter PIN</label>
+    <input id="stepUpPin" type="password" maxlength="4" placeholder="4-digit PIN">
+    <button class="primary" onclick="submitStepUp()">Verify</button>
+    <button class="ghost" onclick="cancelStepUp()">Cancel</button>
+  </div>
+</div>
+
+<script>
+const PEP = "";
+let session = null;
+let renewTimer = null;
+let pendingRetry = null;
+
+function showView(name) {
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+  document.getElementById("view-" + name).classList.add("active");
+  document.querySelector(`.nav-item[data-view="${name}"]`).classList.add("active");
+}
+
+function loadSession() {
+  const raw = localStorage.getItem("zt_session");
+  if (raw) { try { session = JSON.parse(raw); } catch (e) { session = null; } }
+}
+function saveSession() {
+  if (session) localStorage.setItem("zt_session", JSON.stringify(session));
+  else localStorage.removeItem("zt_session");
+}
+
+function recordsPath() { return "/api/patients/" + document.getElementById("patientId").value + "/records"; }
+function exportPath() { return "/api/patients/" + document.getElementById("patientId").value + "/export-pdf"; }
+
+function showBanner(elId, text, kind) {
+  document.getElementById(elId).innerHTML = text ? `<div class="banner ${kind}">${text}</div>` : "";
+}
+
+async function login() {
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
+  const deviceId = document.getElementById("deviceId").value.trim();
+  showBanner("loginBanner", "", "");
+  try {
+    const res = await fetch(PEP + "/login", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password, device_id: deviceId })
+    });
+    const data = await res.json();
+    if (res.ok && data.status === "ok") {
+      session = { token: data.token, sessionId: data.session_id, role: data.role, username, deviceId };
+      saveSession(); renderSession(); startRenewalLoop();
+    } else {
+      showBanner("loginBanner", data.reason || "Login failed", "err");
+    }
+  } catch (e) {
+    showBanner("loginBanner", "Cannot reach PEP — is pep_proxy.exe running?", "err");
+  }
+}
+
+function logout() {
+  session = null; saveSession();
+  if (renewTimer) clearInterval(renewTimer);
+  renderSession();
+}
+
+function renderSession() {
+  const loggedIn = !!session;
+  document.getElementById("loginCard").classList.toggle("hidden", loggedIn);
+  document.getElementById("sessionCard").classList.toggle("hidden", !loggedIn);
+  document.getElementById("actionsCard").classList.toggle("hidden", !loggedIn);
+  if (loggedIn) {
+    document.getElementById("infoUser").textContent = session.username;
+    document.getElementById("infoRole").textContent = session.role;
+    document.getElementById("infoDevice").textContent = session.deviceId;
+    document.getElementById("infoSession").textContent = session.sessionId;
+    showBanner("sessionBanner", "", "");
+  }
+}
+
+function startRenewalLoop() {
+  if (renewTimer) clearInterval(renewTimer);
+  renewTimer = setInterval(async () => {
+    if (!session) return;
+    try {
+      const res = await fetch(PEP + "/token/renew", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: session.token, device_id: session.deviceId })
+      });
+      const data = await res.json();
+      if (res.ok && data.status === "ok") { session.token = data.token; saveSession(); }
+      else { showBanner("sessionBanner", "Session ended: " + (data.reason || "renewal refused"), "err"); clearInterval(renewTimer); }
+    } catch (e) { showBanner("sessionBanner", "Cannot reach PEP for renewal", "err"); }
+  }, 15000);
+}
+
+async function terminateMySession() {
+  if (!session) return;
+  await fetch(PEP + "/admin/terminate-session", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: session.sessionId, terminated_by: session.username, reason: "self-service termination from dashboard" })
+  });
+  showBanner("sessionBanner", "Session terminated. It will stop working on the next request.", "warn");
+}
+
+async function terminateSession(sessionId, who) {
+  await fetch(PEP + "/admin/terminate-session", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId, terminated_by: "soc-operator", reason: "terminated from Sessions view" })
+  });
+  loadSessions();
+}
+
+async function callAction(method, path, stepUpPin) {
+  if (!session) return;
+  const headers = { "Authorization": "Bearer " + session.token, "X-Device-Id": session.deviceId };
+  if (stepUpPin) headers["X-StepUp-Pin"] = stepUpPin;
+  const panel = document.getElementById("responsePanel");
+  panel.textContent = "Loading " + method + " " + path + " ...";
+  try {
+    const res = await fetch(PEP + path, { method, headers });
+    const data = await res.json();
+    if (res.status === 401 && data.error === "step_up_required") {
+      pendingRetry = () => callAction(method, path, document.getElementById("stepUpPin").value);
+      document.getElementById("stepUpReason").textContent = data.reason || "Additional verification required.";
+      document.getElementById("stepUpModal").classList.remove("hidden");
+      panel.textContent = "Awaiting step-up PIN...\n" + JSON.stringify(data, null, 2);
+      return;
+    }
+    document.getElementById("stepUpModal").classList.add("hidden");
+    panel.textContent = "HTTP " + res.status + "\n" + JSON.stringify(data, null, 2);
+  } catch (e) { panel.textContent = "Request failed: " + e; }
+}
+
+function submitStepUp() { document.getElementById("stepUpModal").classList.add("hidden"); if (pendingRetry) pendingRetry(); pendingRetry = null; }
+function cancelStepUp() { document.getElementById("stepUpModal").classList.add("hidden"); pendingRetry = null; }
+
+function decisionPill(decision) { const d = (decision || "").toUpperCase(); return `<span class="pill ${d}">${d}</span>`; }
+function timeAgo(ts) {
+  const secs = Math.max(0, Math.floor(Date.now() / 1000) - ts);
+  if (secs < 60) return secs + "s ago";
+  if (secs < 3600) return Math.floor(secs / 60) + "m ago";
+  return Math.floor(secs / 3600) + "h ago";
+}
+
+function drawChart(counts) {
+  const canvas = document.getElementById("chart");
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  const data = [
+    { label: "ALLOW", value: counts.ALLOW || 0, color: "#158F5C" },
+    { label: "STEP_UP", value: counts.STEP_UP || 0, color: "#E08A2E" },
+    { label: "DENY", value: counts.DENY || 0, color: "#C23A54" },
+  ];
+  const max = Math.max(1, ...data.map(d => d.value));
+  const barW = 70, gap = 40, baseY = h - 30, top = 16;
+  data.forEach((d, i) => {
+    const x = 40 + i * (barW + gap);
+    const barH = (d.value / max) * (baseY - top);
+    ctx.fillStyle = d.color;
+    ctx.fillRect(x, baseY - barH, barW, barH);
+    ctx.fillStyle = "#1B2140";
+    ctx.font = "bold 14px Calibri";
+    ctx.textAlign = "center";
+    ctx.fillText(d.value, x + barW / 2, baseY - barH - 8);
+    ctx.fillStyle = "#6B7399";
+    ctx.font = "11px Calibri";
+    ctx.fillText(d.label, x + barW / 2, h - 10);
+  });
+}
+
+async function pollFeed() {
+  try {
+    const res = await fetch(PEP + "/events/recent");
+    const events = await res.json();
+    document.getElementById("statusDot").classList.add("live");
+    document.getElementById("statusText").textContent = "live";
+
+    const rows = events.map(e => `<tr>
+        <td>${new Date(e.ts * 1000).toLocaleTimeString()}</td>
+        <td class="mono">${e.device_id || "—"}</td>
+        <td>${e.method} ${e.path}</td>
+        <td>${e.risk_score}</td>
+        <td>${decisionPill(e.decision)}</td>
+        <td class="reason-cell" title="${(e.reason || "").replace(/"/g,'&quot;')}">${e.reason || ""}</td>
+      </tr>`).join("");
+    document.getElementById("feedBody").innerHTML = rows;
+
+    const counts = {};
+    events.forEach(e => counts[e.decision] = (counts[e.decision] || 0) + 1);
+    drawChart(counts);
+
+    document.getElementById("kpiEvents").textContent = events.length;
+    document.getElementById("kpiDenies").textContent = counts.DENY || 0;
+  } catch (e) {
+    document.getElementById("statusDot").classList.remove("live");
+    document.getElementById("statusText").textContent = "disconnected";
+  }
+}
+
+async function loadSessions() {
+  try {
+    const res = await fetch(PEP + "/sessions");
+    const sessions = await res.json();
+    const rows = sessions.map(s => `<tr>
+        <td>${s.username}</td>
+        <td>${s.role}</td>
+        <td class="mono">${s.device_id}</td>
+        <td class="mono">${s.origin_ip || "—"}</td>
+        <td>${s.current_risk_score}</td>
+        <td>${decisionPill(s.status)}</td>
+        <td>${timeAgo(s.last_seen_ts)}</td>
+        <td>${s.status === "ACTIVE" ? `<button class="danger small" onclick="terminateSession('${s.session_id}')">Terminate</button>` : ""}</td>
+      </tr>`).join("");
+    document.getElementById("sessionsBody").innerHTML = rows;
+    document.getElementById("kpiActive").textContent = sessions.filter(s => s.status === "ACTIVE").length;
+  } catch (e) {}
+}
+
+async function loadDevices() {
+  try {
+    const res = await fetch(PEP + "/devices");
+    const devices = await res.json();
+    const rows = devices.map(d => `<tr>
+        <td class="mono">${d.device_id}</td>
+        <td>${d.hostname}</td>
+        <td>${d.os}</td>
+        <td>${d.firewall_active ? "✓ on" : "✗ off"}</td>
+        <td>${d.antivirus_active ? "✓ present" : "✗ absent"}</td>
+        <td>${d.signature_valid ? "✓ valid" : "✗ invalid"}</td>
+        <td>${d.heartbeat_age_seconds}s</td>
+        <td>${decisionPill(d.status)}</td>
+      </tr>`).join("");
+    document.getElementById("devicesBody").innerHTML = rows;
+    document.getElementById("kpiDevices").textContent = devices.filter(d => d.status === "HEALTHY").length;
+  } catch (e) {}
+}
+
+loadSession();
+renderSession();
+if (session) startRenewalLoop();
+pollFeed(); loadSessions(); loadDevices();
+setInterval(pollFeed, 1500);
+setInterval(loadSessions, 2000);
+setInterval(loadDevices, 2000);
+</script>
+
+</body>
+</html>

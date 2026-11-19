@@ -1,0 +1,419 @@
+{
+  "schema": 1,
+  "name": "CP3 baseline expectations (FROZEN before any run)",
+  "note": "Each step has a REQUIREMENT (what the spec / Stage 2 target demands) and a PREDICTION (what reading the legacy source says it will do). The SHA-256 of this file is recorded in the Phase A manifest before anything is started; Phase B refuses to run if it differs. A mismatch is reported as 'prediction wrong'. It is never edited after the fact. 'observation' steps carry no requirement verdict.",
+  "vocabulary": "checks are {path, op, value}; paths address the flat 'actual' record of a step; ops: eq ne in between lte gte contains startsWith exists hasAll lacksAll",
+  "legacyFacts": {
+    "tokenTtlSeconds": 20,
+    "staleHeartbeatSeconds": 5,
+    "bands": "ALLOW below 40, STEP_UP 40-69, DENY 70 and above",
+    "sensitivity": "public info 0, patient list 20, records 40, export 60, audit events 10",
+    "assignmentMismatch": 25,
+    "note": "for an ALLOW the PEP returns only the protected API's body, so no risk score is visible on an allowed request"
+  },
+  "steps": [
+    {
+      "id": "S0", "scenario": "S0", "title": "Smoke: dashboard served, unauthenticated data call refused",
+      "request": "GET /  and  GET /api/public/info without Authorization",
+      "requirementText": "the dashboard is served; a data call without a token is refused",
+      "requirement": { "all": [
+        { "path": "dashboardStatus", "op": "eq", "value": 200 },
+        { "path": "dashboardContentType", "op": "startsWith", "value": "text/html" },
+        { "path": "unauthStatus", "op": "in", "value": [401, 403] } ] },
+      "predictionText": "200 text/html of the copied dashboard's size (26800 bytes); 401 'missing Authorization bearer token or X-Device-Id header'",
+      "prediction": { "all": [
+        { "path": "dashboardStatus", "op": "eq", "value": 200 },
+        { "path": "dashboardContentType", "op": "startsWith", "value": "text/html" },
+        { "path": "dashboardBytes", "op": "eq", "value": 26800 },
+        { "path": "unauthStatus", "op": "eq", "value": 401 },
+        { "path": "unauthReason", "op": "contains", "value": "missing Authorization bearer token or X-Device-Id header" } ] },
+      "predictedBaseline": "PASS"
+    },
+    {
+      "id": "T01.1", "scenario": "T01", "title": "Valid doctor login",
+      "request": "POST /login dr_alice with the generated password and the agent's device id",
+      "requirementText": "valid credentials from a healthy registered device give a session and a short-lived device-bound token",
+      "requirement": { "all": [
+        { "path": "status", "op": "eq", "value": 200 },
+        { "path": "role", "op": "eq", "value": "doctor" },
+        { "path": "hasToken", "op": "eq", "value": true },
+        { "path": "tokenTtlSeconds", "op": "between", "value": [1, 60] },
+        { "path": "tokenDeviceMatches", "op": "eq", "value": true } ] },
+      "predictionText": "200, status ok, role doctor, token valid 20 s, bound to the device id, origin 127.0.0.1",
+      "prediction": { "all": [
+        { "path": "status", "op": "eq", "value": 200 },
+        { "path": "jsonStatus", "op": "eq", "value": "ok" },
+        { "path": "role", "op": "eq", "value": "doctor" },
+        { "path": "hasToken", "op": "eq", "value": true },
+        { "path": "hasSessionId", "op": "eq", "value": true },
+        { "path": "tokenTtlSeconds", "op": "eq", "value": 20 },
+        { "path": "tokenDeviceMatches", "op": "eq", "value": true },
+        { "path": "tokenOriginIp", "op": "eq", "value": "127.0.0.1" } ] },
+      "predictedBaseline": "PASS"
+    },
+    {
+      "id": "T01.2", "scenario": "T01", "title": "The login is recorded",
+      "request": "GET /sessions and GET /events/recent before and after T01.1 (counts only)",
+      "requirementText": "a login leaves an ACTIVE session and an audit event",
+      "requirement": { "all": [
+        { "path": "activeSessionsDelta", "op": "eq", "value": 1 },
+        { "path": "loginEventListed", "op": "eq", "value": true } ] },
+      "predictionText": "ACTIVE sessions of dr_alice +1; a LOGIN event row for the new session",
+      "prediction": { "all": [
+        { "path": "activeSessionsDelta", "op": "eq", "value": 1 },
+        { "path": "loginEventListed", "op": "eq", "value": true } ] },
+      "predictedBaseline": "PASS"
+    },
+    {
+      "id": "T03.1", "scenario": "T03", "title": "Assigned patient 101, records, no PIN",
+      "request": "GET /api/patients/101/records as dr_alice (assigned), no PIN",
+      "requirementText": "the assigned patient's record is reachable (step-up may be required by policy)",
+      "requirement": { "observation": true },
+      "predictionText": "401 step_up_required at risk 40 (data 40, assignment 0)",
+      "prediction": { "all": [
+        { "path": "status", "op": "eq", "value": 401 },
+        { "path": "error", "op": "eq", "value": "step_up_required" },
+        { "path": "riskScore", "op": "eq", "value": 40 },
+        { "path": "breakdown.device", "op": "eq", "value": 0 },
+        { "path": "breakdown.data", "op": "eq", "value": 40 },
+        { "path": "breakdown.assignment", "op": "eq", "value": 0 } ] },
+      "predictedBaseline": "OBSERVATION"
+    },
+    {
+      "id": "T03.2", "scenario": "T03", "title": "Assigned patient 101, records, correct PIN",
+      "request": "GET /api/patients/101/records as dr_alice with the correct step-up PIN",
+      "requirementText": "the doctor gets the clinical record of the assigned patient, without SSN or billing",
+      "requirement": { "all": [
+        { "path": "status", "op": "eq", "value": 200 },
+        { "path": "fieldNames", "op": "lacksAll", "value": ["ssn", "billing"] } ] },
+      "predictionText": "200 with patient_id, name, dob, diagnosis, medication; no ssn, no billing",
+      "prediction": { "all": [
+        { "path": "status", "op": "eq", "value": 200 },
+        { "path": "fieldNames", "op": "hasAll", "value": ["patient_id", "name", "dob", "diagnosis", "medication"] },
+        { "path": "fieldNames", "op": "lacksAll", "value": ["ssn", "billing"] } ] },
+      "predictedBaseline": "PASS"
+    },
+    {
+      "id": "T03.3", "scenario": "T03", "title": "Assigned patient 101, export, correct PIN",
+      "request": "POST /api/patients/101/export-pdf as dr_alice with the correct PIN",
+      "requirementText": "no export policy exists in the legacy system (the target needs an explicit one); recorded as an observation",
+      "requirement": { "observation": true },
+      "predictionText": "risk 60 -> step-up -> 200 including ssn and billing fields (values are never stored)",
+      "prediction": { "all": [
+        { "path": "status", "op": "eq", "value": 200 },
+        { "path": "hasSsn", "op": "eq", "value": true },
+        { "path": "hasBilling", "op": "eq", "value": true } ] },
+      "predictedBaseline": "OBSERVATION"
+    },
+    {
+      "id": "T04.1", "scenario": "T04", "title": "Unassigned patient 103, records, no PIN",
+      "request": "GET /api/patients/103/records as dr_alice (103 is assigned to nurse_bob only), no PIN",
+      "requirementText": "unassigned access is not granted by default; recorded as an observation",
+      "requirement": { "observation": true },
+      "predictionText": "401 step_up_required at risk 65 (data 40 + assignment 25)",
+      "prediction": { "all": [
+        { "path": "status", "op": "eq", "value": 401 },
+        { "path": "error", "op": "eq", "value": "step_up_required" },
+        { "path": "riskScore", "op": "eq", "value": 65 },
+        { "path": "breakdown.data", "op": "eq", "value": 40 },
+        { "path": "breakdown.assignment", "op": "eq", "value": 25 } ] },
+      "predictedBaseline": "OBSERVATION"
+    },
+    {
+      "id": "T04.2", "scenario": "T04", "title": "Unassigned patient 103, records, correct PIN",
+      "request": "GET /api/patients/103/records as dr_alice with the correct PIN",
+      "requirementText": "an unassigned patient's record is only reachable through break-glass with an explicit justification, never by a PIN alone",
+      "requirement": { "all": [ { "path": "status", "op": "in", "value": [401, 403] } ] },
+      "predictionText": "200 with the record; no justification is asked for",
+      "prediction": { "all": [
+        { "path": "status", "op": "eq", "value": 200 },
+        { "path": "fieldNames", "op": "hasAll", "value": ["diagnosis"] } ] },
+      "predictedBaseline": "FAIL"
+    },
+    {
+      "id": "T04.3", "scenario": "T04", "title": "Unassigned patient 103, export, correct PIN",
+      "request": "POST /api/patients/103/export-pdf as dr_alice with the correct PIN",
+      "requirementText": "export of an unassigned patient is blocked",
+      "requirement": { "all": [ { "path": "status", "op": "in", "value": [401, 403] } ] },
+      "predictionText": "403 DENY at risk 85 (data 60 + assignment 25)",
+      "prediction": { "all": [
+        { "path": "status", "op": "eq", "value": 403 },
+        { "path": "riskScore", "op": "eq", "value": 85 },
+        { "path": "breakdown.data", "op": "eq", "value": 60 },
+        { "path": "breakdown.assignment", "op": "eq", "value": 25 } ] },
+      "predictedBaseline": "PASS"
+    },
+    {
+      "id": "T04.4", "scenario": "T04", "title": "Patient 104 (assigned to nobody), records, correct PIN",
+      "request": "GET /api/patients/104/records as dr_alice with the correct PIN",
+      "requirementText": "same as T04.2",
+      "requirement": { "all": [ { "path": "status", "op": "in", "value": [401, 403] } ] },
+      "predictionText": "200 with the record",
+      "prediction": { "all": [ { "path": "status", "op": "eq", "value": 200 } ] },
+      "predictedBaseline": "FAIL"
+    },
+    {
+      "id": "T10.1", "scenario": "T10", "title": "Missing token",
+      "request": "GET /api/public/info with X-Device-Id but no Authorization header",
+      "requirementText": "a request without a token is rejected",
+      "requirement": { "all": [ { "path": "status", "op": "in", "value": [401, 403] } ] },
+      "predictionText": "401 'missing Authorization bearer token or X-Device-Id header' (answered by the PEP, the PDP is not called)",
+      "prediction": { "all": [
+        { "path": "status", "op": "eq", "value": 401 },
+        { "path": "reason", "op": "contains", "value": "missing Authorization bearer token or X-Device-Id header" } ] },
+      "predictedBaseline": "PASS"
+    },
+    {
+      "id": "T10.2", "scenario": "T10", "title": "Forged and malformed tokens",
+      "request": "GET /api/public/info with the last signature character changed; with the token 'abc'",
+      "requirementText": "forged or malformed tokens are rejected",
+      "requirement": { "all": [
+        { "path": "tamperedStatus", "op": "in", "value": [401, 403] },
+        { "path": "malformedStatus", "op": "in", "value": [401, 403] } ] },
+      "predictionText": "403 'token rejected: signature mismatch'; 403 'token rejected: malformed token'",
+      "prediction": { "all": [
+        { "path": "tamperedStatus", "op": "eq", "value": 403 },
+        { "path": "tamperedReason", "op": "contains", "value": "signature mismatch" },
+        { "path": "malformedStatus", "op": "eq", "value": 403 },
+        { "path": "malformedReason", "op": "contains", "value": "malformed token" } ] },
+      "predictedBaseline": "PASS"
+    },
+    {
+      "id": "T10.3", "scenario": "T10", "title": "Valid token replayed from another device id",
+      "request": "GET /api/public/info with a valid token and a different X-Device-Id",
+      "requirementText": "a token is bound to its device",
+      "requirement": { "all": [ { "path": "status", "op": "in", "value": [401, 403] } ] },
+      "predictionText": "403 'token rejected: device mismatch - possible token replay'",
+      "prediction": { "all": [
+        { "path": "status", "op": "eq", "value": 403 },
+        { "path": "reason", "op": "contains", "value": "device mismatch" } ] },
+      "predictedBaseline": "PASS"
+    },
+    {
+      "id": "T10.4", "scenario": "T10", "title": "Expired token",
+      "request": "GET /api/public/info with the token 22 s after login",
+      "requirementText": "an expired token is rejected",
+      "requirement": { "all": [ { "path": "status", "op": "in", "value": [401, 403] } ] },
+      "predictionText": "403 'token rejected: token expired'",
+      "prediction": { "all": [
+        { "path": "status", "op": "eq", "value": 403 },
+        { "path": "reason", "op": "contains", "value": "token expired" } ] },
+      "predictedBaseline": "PASS"
+    },
+    {
+      "id": "T10.5", "scenario": "T10", "title": "Revoked session",
+      "request": "terminate the session with the legacy admin route, then the same token (still inside 20 s) and POST /token/renew",
+      "requirementText": "revocation takes effect on the very next request and the token cannot be renewed",
+      "requirement": { "all": [
+        { "path": "revokedStatus", "op": "in", "value": [401, 403] },
+        { "path": "renewStatus", "op": "in", "value": [401, 403] } ] },
+      "predictionText": "terminate 200; 403 'session not active (expired, unknown, or terminated)'; renew 403 'session no longer active'",
+      "prediction": { "all": [
+        { "path": "terminateStatus", "op": "eq", "value": 200 },
+        { "path": "revokedStatus", "op": "eq", "value": 403 },
+        { "path": "revokedReason", "op": "contains", "value": "session not active" },
+        { "path": "renewStatus", "op": "eq", "value": 403 },
+        { "path": "renewReason", "op": "contains", "value": "session no longer active" } ] },
+      "predictedBaseline": "PASS"
+    },
+    {
+      "id": "T13.1", "scenario": "T13", "title": "Request with the agent alive",
+      "request": "login dr_alice, GET /api/public/info",
+      "requirementText": "precondition: a healthy device gets service",
+      "requirement": { "all": [ { "path": "status", "op": "eq", "value": 200 } ] },
+      "predictionText": "200 with the hospital info body",
+      "prediction": { "all": [
+        { "path": "status", "op": "eq", "value": 200 },
+        { "path": "fieldNames", "op": "hasAll", "value": ["hospital"] } ] },
+      "predictedBaseline": "PASS"
+    },
+    {
+      "id": "T13.2", "scenario": "T13", "title": "Agent stopped: how long until trust ends",
+      "request": "stop the agent (recorded pid); GET /api/public/info once a second for up to 15 s",
+      "requirementText": "trust ends within a bounded time after the agent stops (Stage 2 target: more than 6 s stale gives DENY; limit used here 8 s)",
+      "requirement": { "all": [
+        { "path": "firstDenySeconds", "op": "exists", "value": true },
+        { "path": "firstDenySeconds", "op": "lte", "value": 8 },
+        { "path": "denyDeviceScore", "op": "eq", "value": 200 } ] },
+      "predictionText": "ALLOW at first, then DENY with device=200 about 3-8 s after the stop (5 s threshold, whole-second timestamps, 1 s polling)",
+      "prediction": { "all": [
+        { "path": "firstDenySeconds", "op": "between", "value": [3, 8] },
+        { "path": "allowedBeforeDeny", "op": "gte", "value": 1 },
+        { "path": "denyDeviceScore", "op": "eq", "value": 200 } ] },
+      "predictedBaseline": "PASS"
+    },
+    {
+      "id": "T13.3", "scenario": "T13", "title": "Renewal while the heartbeat is stale",
+      "request": "POST /token/renew with the still valid token",
+      "requirementText": "a stale device cannot renew trust",
+      "requirement": { "all": [ { "path": "status", "op": "in", "value": [401, 403] } ] },
+      "predictionText": "403 'device posture no longer healthy - renewal refused'",
+      "prediction": { "all": [
+        { "path": "status", "op": "eq", "value": 403 },
+        { "path": "reason", "op": "contains", "value": "device posture no longer healthy" } ] },
+      "predictedBaseline": "PASS"
+    },
+    {
+      "id": "T13.4", "scenario": "T13", "title": "New login while the agent is stopped",
+      "request": "POST /login dr_alice with the agent stopped",
+      "requirementText": "no new session from a device without a fresh heartbeat",
+      "requirement": { "all": [ { "path": "status", "op": "in", "value": [401, 403] } ] },
+      "predictionText": "403 'device posture unhealthy or agent not running - cannot start a session'",
+      "prediction": { "all": [
+        { "path": "status", "op": "eq", "value": 403 },
+        { "path": "reason", "op": "contains", "value": "device posture unhealthy or agent not running" } ] },
+      "predictedBaseline": "PASS"
+    },
+    {
+      "id": "T13.5", "scenario": "T13", "title": "Recovery after the agent restarts",
+      "request": "restart the agent, wait for a 200 heartbeat, login, GET /api/public/info",
+      "requirementText": "service resumes once heartbeats resume",
+      "requirement": { "all": [
+        { "path": "loginStatus", "op": "eq", "value": 200 },
+        { "path": "requestStatus", "op": "eq", "value": 200 } ] },
+      "predictionText": "login 200, request 200",
+      "prediction": { "all": [
+        { "path": "agentRestarted", "op": "eq", "value": true },
+        { "path": "loginStatus", "op": "eq", "value": 200 },
+        { "path": "requestStatus", "op": "eq", "value": 200 } ] },
+      "predictedBaseline": "PASS"
+    },
+    {
+      "id": "T15.1", "scenario": "T15", "title": "Step-up demanded",
+      "request": "GET /api/patients/101/records as dr_alice, no PIN",
+      "requirementText": "step-up verification is demanded where policy requires it",
+      "requirement": { "all": [
+        { "path": "status", "op": "eq", "value": 401 },
+        { "path": "error", "op": "eq", "value": "step_up_required" } ] },
+      "predictionText": "401 step_up_required at risk 40",
+      "prediction": { "all": [
+        { "path": "status", "op": "eq", "value": 401 },
+        { "path": "error", "op": "eq", "value": "step_up_required" },
+        { "path": "riskScore", "op": "eq", "value": 40 } ] },
+      "predictedBaseline": "PASS"
+    },
+    {
+      "id": "T15.2", "scenario": "T15", "title": "Wrong step-up PIN",
+      "request": "same request with a random wrong PIN",
+      "requirementText": "a failed step-up is denied",
+      "requirement": { "all": [ { "path": "status", "op": "in", "value": [401, 403] } ] },
+      "predictionText": "403 '... (step-up PIN incorrect)' at risk 40",
+      "prediction": { "all": [
+        { "path": "status", "op": "eq", "value": 403 },
+        { "path": "reason", "op": "contains", "value": "step-up PIN incorrect" },
+        { "path": "riskScore", "op": "eq", "value": 40 } ] },
+      "predictedBaseline": "PASS"
+    },
+    {
+      "id": "T15.3", "scenario": "T15", "title": "Correct step-up PIN",
+      "request": "same request with the correct PIN",
+      "requirementText": "a successful step-up is allowed",
+      "requirement": { "all": [ { "path": "status", "op": "eq", "value": 200 } ] },
+      "predictionText": "200 with the record",
+      "prediction": { "all": [ { "path": "status", "op": "eq", "value": 200 } ] },
+      "predictedBaseline": "PASS"
+    },
+    {
+      "id": "T15.4", "scenario": "T15", "title": "Failed and successful step-up are audited",
+      "request": "GET /events/recent once; count the rows of this session (counts and booleans only)",
+      "requirementText": "failed and successful step-up attempts are audited",
+      "requirement": { "all": [
+        { "path": "hasPinIncorrectRow", "op": "eq", "value": true },
+        { "path": "hasPinVerifiedRow", "op": "eq", "value": true } ] },
+      "predictionText": "login row plus one row per evaluation, including 'PIN incorrect' and 'PIN verified'",
+      "prediction": { "all": [
+        { "path": "auditRows", "op": "gte", "value": 4 },
+        { "path": "hasAwaitingRow", "op": "eq", "value": true },
+        { "path": "hasPinIncorrectRow", "op": "eq", "value": true },
+        { "path": "hasPinVerifiedRow", "op": "eq", "value": true } ] },
+      "predictedBaseline": "PASS"
+    },
+    {
+      "id": "T18.1", "scenario": "T18", "title": "Session list without credentials",
+      "request": "GET /sessions with no credentials",
+      "requirementText": "administrative and monitoring routes reject unauthenticated callers and return no data",
+      "requirement": { "all": [ { "path": "status", "op": "in", "value": [401, 403] } ] },
+      "predictionText": "200 with a JSON list of sessions (session_id, device_id, username, role, origin_ip, status ...), including the victim's session",
+      "prediction": { "all": [
+        { "path": "status", "op": "eq", "value": 200 },
+        { "path": "isArray", "op": "eq", "value": true },
+        { "path": "itemCount", "op": "gte", "value": 1 },
+        { "path": "fieldNames", "op": "hasAll", "value": ["session_id", "username", "role", "status"] },
+        { "path": "victimListed", "op": "eq", "value": true } ] },
+      "predictedBaseline": "FAIL"
+    },
+    {
+      "id": "T18.2", "scenario": "T18", "title": "Device list without credentials",
+      "request": "GET /devices with no credentials",
+      "requirementText": "as T18.1",
+      "requirement": { "all": [ { "path": "status", "op": "in", "value": [401, 403] } ] },
+      "predictionText": "200 with a JSON list of devices",
+      "prediction": { "all": [
+        { "path": "status", "op": "eq", "value": 200 },
+        { "path": "isArray", "op": "eq", "value": true },
+        { "path": "fieldNames", "op": "hasAll", "value": ["device_id", "status"] } ] },
+      "predictedBaseline": "FAIL"
+    },
+    {
+      "id": "T18.3", "scenario": "T18", "title": "Event list without credentials",
+      "request": "GET /events/recent with no credentials",
+      "requirementText": "as T18.1",
+      "requirement": { "all": [ { "path": "status", "op": "in", "value": [401, 403] } ] },
+      "predictionText": "200 with up to 50 audit events",
+      "prediction": { "all": [
+        { "path": "status", "op": "eq", "value": 200 },
+        { "path": "isArray", "op": "eq", "value": true },
+        { "path": "itemCount", "op": "between", "value": [1, 50] },
+        { "path": "fieldNames", "op": "hasAll", "value": ["event_id", "session_id", "reason"] } ] },
+      "predictedBaseline": "FAIL"
+    },
+    {
+      "id": "T18.4", "scenario": "T18", "title": "Unauthenticated termination of another user's session with forged attribution",
+      "request": "victim front_carol logs in and is served; with no credentials POST /admin/terminate-session for her session id (learned from T18.1) with terminated_by 'cp3-forged-operator'; victim's next request; GET /sessions",
+      "requirementText": "an unauthenticated caller cannot end sessions or choose the audit attribution",
+      "requirement": { "all": [
+        { "path": "terminateStatus", "op": "in", "value": [401, 403] },
+        { "path": "victimAfterStatus", "op": "eq", "value": 200 } ] },
+      "predictionText": "terminate 200; the victim then gets 403 'session not active'; the forged terminated_by is stored",
+      "prediction": { "all": [
+        { "path": "terminateStatus", "op": "eq", "value": 200 },
+        { "path": "victimBeforeStatus", "op": "eq", "value": 200 },
+        { "path": "victimAfterStatus", "op": "eq", "value": 403 },
+        { "path": "victimAfterReason", "op": "contains", "value": "session not active" },
+        { "path": "forgedAttributionStored", "op": "eq", "value": true } ] },
+      "predictedBaseline": "FAIL"
+    },
+    {
+      "id": "P1", "scenario": "P1", "title": "Crash probe 1: non-numeric Content-Length",
+      "request": "one raw request: POST /login HTTP/1.1, Content-Length: abc (scratch PEP with the terminate handler, see section 5 P3)",
+      "requirementText": "the PEP survives malformed input and answers with a 4xx",
+      "requirement": { "all": [ { "path": "pepExited", "op": "eq", "value": false } ] },
+      "predictionText": "connection closed without a response; the PEP exits with code 99 (the scratch-only terminate handler; an unmodified binary would abort - not shown by this run); API and PDP keep listening",
+      "prediction": { "all": [
+        { "path": "responseReceived", "op": "eq", "value": false },
+        { "path": "pepExited", "op": "eq", "value": true },
+        { "path": "pepExitCode", "op": "eq", "value": 99 },
+        { "path": "apiStillListening", "op": "eq", "value": true },
+        { "path": "pdpStillListening", "op": "eq", "value": true },
+        { "path": "restartedOk", "op": "eq", "value": true },
+        { "path": "dashboardAfterStatus", "op": "eq", "value": 200 } ] },
+      "predictedBaseline": "FAIL"
+    },
+    {
+      "id": "P2", "scenario": "P2", "title": "Crash probe 2: invalid UTF-8 byte in a header",
+      "request": "one raw request: GET /api/public/info, Authorization: Bearer <bytes FF FE>, X-Device-Id: probe",
+      "requirementText": "the PEP survives malformed input and answers with a 4xx",
+      "requirement": { "all": [ { "path": "pepExited", "op": "eq", "value": false } ] },
+      "predictionText": "as P1",
+      "prediction": { "all": [
+        { "path": "responseReceived", "op": "eq", "value": false },
+        { "path": "pepExited", "op": "eq", "value": true },
+        { "path": "pepExitCode", "op": "eq", "value": 99 },
+        { "path": "apiStillListening", "op": "eq", "value": true },
+        { "path": "pdpStillListening", "op": "eq", "value": true },
+        { "path": "restartedOk", "op": "eq", "value": true },
+        { "path": "dashboardAfterStatus", "op": "eq", "value": 200 } ] },
+      "predictedBaseline": "FAIL"
+    }
+  ]
+}

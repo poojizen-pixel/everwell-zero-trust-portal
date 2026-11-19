@@ -1,0 +1,148 @@
+{
+  "schema": 1,
+  "purpose": "CP3 scratch-copy patch specification. These edits are applied ONLY to a copy of the verified backup inside the work folder, never to the project. Line numbers refer to the ORIGINAL files. Every edit needs the exact original line (indentation included); a mismatch aborts.",
+  "runPlaceholder": "{RUN}",
+  "runPlaceholderMeaning": "the run folder with forward slashes, e.g. C:/Users/<user>/AppData/Local/Temp/zt-his-work/cp3-<stamp>",
+  "expectedChangedLines": 18,
+  "expectedFilesChanged": 7,
+  "copyList": [
+    "agent/src/Config.h",
+    "agent/src/main.cpp",
+    "agent/src/PostureCheck.cpp",
+    "agent/src/PostureCheck.h",
+    "dashboard/index.html",
+    "db/schema.sql",
+    "lib/gson-2.11.0.jar",
+    "lib/sqlite-jdbc-3.46.1.3.jar",
+    "pdp/certs/pdp_cert.cer",
+    "pdp/certs/pdp_keystore.jks",
+    "pdp/sources.txt",
+    "pdp/src/pdp/Config.java",
+    "pdp/src/pdp/crypto/HmacSigner.java",
+    "pdp/src/pdp/crypto/PasswordHasher.java",
+    "pdp/src/pdp/crypto/TokenService.java",
+    "pdp/src/pdp/db/Database.java",
+    "pdp/src/pdp/http/EventBroadcaster.java",
+    "pdp/src/pdp/http/handlers/DevicesListHandler.java",
+    "pdp/src/pdp/http/handlers/EvaluateHandler.java",
+    "pdp/src/pdp/http/handlers/EventsRecentHandler.java",
+    "pdp/src/pdp/http/handlers/EventsStreamHandler.java",
+    "pdp/src/pdp/http/handlers/LoginHandler.java",
+    "pdp/src/pdp/http/handlers/RenewHandler.java",
+    "pdp/src/pdp/http/handlers/SessionsListHandler.java",
+    "pdp/src/pdp/http/handlers/TelemetryHandler.java",
+    "pdp/src/pdp/http/handlers/TerminateSessionHandler.java",
+    "pdp/src/pdp/http/HttpUtil.java",
+    "pdp/src/pdp/http/TlsServerFactory.java",
+    "pdp/src/pdp/Main.java",
+    "pdp/src/pdp/risk/AssignmentMismatchVector.java",
+    "pdp/src/pdp/risk/BehavioralVector.java",
+    "pdp/src/pdp/risk/DataSensitivityVector.java",
+    "pdp/src/pdp/risk/DevicePostureVector.java",
+    "pdp/src/pdp/risk/NetworkContextVector.java",
+    "pdp/src/pdp/risk/PolicyLookup.java",
+    "pdp/src/pdp/risk/RiskContext.java",
+    "pdp/src/pdp/risk/RiskEngine.java",
+    "pdp/src/pdp/risk/RiskVector.java",
+    "pep_proxy/src/Config.h",
+    "pep_proxy/src/HttpServer.cpp",
+    "pep_proxy/src/HttpServer.h",
+    "pep_proxy/src/main.cpp",
+    "protected_app/certs/app_keystore.jks",
+    "protected_app/sources.txt",
+    "protected_app/src/app/Config.java",
+    "protected_app/src/app/crypto/HmacSigner.java",
+    "protected_app/src/app/crypto/PatientCipher.java",
+    "protected_app/src/app/db/Database.java",
+    "protected_app/src/app/http/handlers/AuditEventsHandler.java",
+    "protected_app/src/app/http/handlers/PatientDetailHandler.java",
+    "protected_app/src/app/http/handlers/PatientsListHandler.java",
+    "protected_app/src/app/http/handlers/PublicInfoHandler.java",
+    "protected_app/src/app/http/HttpUtil.java",
+    "protected_app/src/app/http/PepSignatureFilter.java",
+    "protected_app/src/app/http/TlsServerFactory.java",
+    "protected_app/src/app/Main.java",
+    "protected_app/src/app/seed/PatientSeeder.java",
+    "shared/crypto/hmac_sha256.h",
+    "shared/crypto/sha256.h",
+    "shared/include/json.hpp",
+    "shared/net/WinHttpClient.cpp",
+    "shared/net/WinHttpClient.h"
+  ],
+  "toolingFiles": [
+    "scripts/common.ps1",
+    "scripts/build.ps1",
+    "scripts/tools/DbTool.java"
+  ],
+  "patchedFiles": [
+    {
+      "path": "pdp/src/pdp/Config.java",
+      "edits": [
+        { "id": 1, "kind": "P1", "op": "replace", "line": 17, "original": "    public static final int PORT = 8443;", "replacement": "    public static final int PORT = 18443;" },
+        { "id": 2, "kind": "P1", "op": "replace", "line": 18, "original": "    public static final String DB_PATH = \"C:/Ap project/db/zero_trust.db\";", "replacement": "    public static final String DB_PATH = \"{RUN}/disposable-db/zero_trust.db\";" },
+        { "id": 3, "kind": "P1", "op": "replace", "line": 19, "original": "    public static final String SCHEMA_PATH = \"C:/Ap project/db/schema.sql\";", "replacement": "    public static final String SCHEMA_PATH = \"{RUN}/tree/db/schema.sql\";" },
+        { "id": 4, "kind": "P1", "op": "replace", "line": 20, "original": "    public static final String KEYSTORE_PATH = \"C:/Ap project/pdp/certs/pdp_keystore.jks\";", "replacement": "    public static final String KEYSTORE_PATH = \"{RUN}/tree/pdp/certs/pdp_keystore.jks\";" }
+      ]
+    },
+    {
+      "path": "protected_app/src/app/Config.java",
+      "edits": [
+        { "id": 5, "kind": "P1", "op": "replace", "line": 6, "original": "    public static final int PORT = 9000;", "replacement": "    public static final int PORT = 19000;" },
+        { "id": 6, "kind": "P1", "op": "replace", "line": 9, "original": "    public static final String DB_PATH = \"C:/Ap project/db/zero_trust.db\";", "replacement": "    public static final String DB_PATH = \"{RUN}/disposable-db/zero_trust.db\";" },
+        { "id": 7, "kind": "P1", "op": "replace", "line": 10, "original": "    public static final String KEYSTORE_PATH = \"C:/Ap project/protected_app/certs/app_keystore.jks\";", "replacement": "    public static final String KEYSTORE_PATH = \"{RUN}/tree/protected_app/certs/app_keystore.jks\";" }
+      ]
+    },
+    {
+      "path": "pep_proxy/src/Config.h",
+      "edits": [
+        { "id": 8, "kind": "P1", "op": "replace", "line": 11, "original": "    constexpr int LISTEN_PORT = 5000;", "replacement": "    constexpr int LISTEN_PORT = 15000;" },
+        { "id": 9, "kind": "P1", "op": "replace", "line": 14, "original": "    constexpr int PDP_PORT = 8443;", "replacement": "    constexpr int PDP_PORT = 18443;" },
+        { "id": 10, "kind": "P1", "op": "replace", "line": 17, "original": "    constexpr int APP_PORT = 9000;", "replacement": "    constexpr int APP_PORT = 19000;" },
+        { "id": 11, "kind": "P1", "op": "replace", "line": 24, "original": "    const std::string DASHBOARD_HTML_PATH = \"C:/Ap project/dashboard/index.html\";", "replacement": "    const std::string DASHBOARD_HTML_PATH = \"{RUN}/tree/dashboard/index.html\";" }
+      ]
+    },
+    {
+      "path": "agent/src/Config.h",
+      "edits": [
+        { "id": 12, "kind": "P1", "op": "replace", "line": 6, "original": "    constexpr int PDP_PORT = 8443;", "replacement": "    constexpr int PDP_PORT = 18443;" }
+      ]
+    },
+    {
+      "path": "pdp/src/pdp/http/TlsServerFactory.java",
+      "edits": [
+        { "id": 13, "kind": "P2", "op": "replace", "line": 20, "original": "        HttpsServer server = HttpsServer.create(new InetSocketAddress(port), 0);", "replacement": "        HttpsServer server = HttpsServer.create(new InetSocketAddress(java.net.InetAddress.getByAddress(new byte[]{127, 0, 0, 1}), port), 0);" }
+      ]
+    },
+    {
+      "path": "pep_proxy/src/main.cpp",
+      "edits": [
+        { "id": 14, "kind": "P2", "op": "replace", "line": 264, "original": "    addr.sin_addr.s_addr = INADDR_ANY;", "replacement": "    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);" },
+        { "id": 15, "kind": "P3", "op": "insert-after", "line": 19, "anchor": "#include <sstream>", "text": "#include <exception>" },
+        { "id": 16, "kind": "P3", "op": "insert-after", "line": 246, "anchor": "int main() {", "text": "    std::set_terminate([]() { ExitProcess(99); });" }
+      ]
+    },
+    {
+      "path": "agent/src/main.cpp",
+      "edits": [
+        { "id": 17, "kind": "P3", "op": "insert-after", "line": 17, "anchor": "#include <chrono>", "text": "#include <exception>" },
+        { "id": 18, "kind": "P3", "op": "insert-after", "line": 30, "anchor": "int main(int argc, char** argv) {", "text": "    std::set_terminate([]() { ExitProcess(99); });" }
+      ]
+    }
+  ],
+  "forbiddenSourcePatterns": [
+    "INADDR_ANY",
+    "new\\s+InetSocketAddress\\s*\\(\\s*port\\s*\\)"
+  ],
+  "forbiddenTreeStrings": [ "Ap project", "Ap_project" ],
+  "bindSiteRegex": "\\b(bind|listen)\\s*\\(|InetSocketAddress\\s*\\(|HttpsServer\\.create\\s*\\(|HttpServer\\.create\\s*\\(|ServerSocket|INADDR_[A-Z]+|0\\.0\\.0\\.0",
+  "bindSitesAfterPatch": [
+    { "file": "pep_proxy/src/main.cpp", "text": "addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);", "note": "PEP bind address (patched, loopback)" },
+    { "file": "pep_proxy/src/main.cpp", "text": "if (bind(listenSocket, (sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR) {", "note": "PEP bind() call" },
+    { "file": "pep_proxy/src/main.cpp", "text": "std::cerr << \"bind() failed, port \" << Config::LISTEN_PORT << \" in use?\" << std::endl;", "note": "message text only" },
+    { "file": "pep_proxy/src/main.cpp", "text": "if (listen(listenSocket, SOMAXCONN) == SOCKET_ERROR) {", "note": "PEP listen() call" },
+    { "file": "pep_proxy/src/main.cpp", "text": "std::cerr << \"listen() failed\" << std::endl;", "note": "message text only" },
+    { "file": "pep_proxy/src/HttpServer.cpp", "text": "if (getpeername(sock, (sockaddr*)&addr, &addrLen) != 0) return \"0.0.0.0\";", "note": "placeholder returned when the peer address cannot be read; not a bind" },
+    { "file": "protected_app/src/app/http/TlsServerFactory.java", "text": "HttpsServer server = HttpsServer.create(new InetSocketAddress(bindHost, port), 0);", "note": "API bind (bindHost = Config.BIND_HOST = 127.0.0.1, unchanged legacy code)" },
+    { "file": "pdp/src/pdp/http/TlsServerFactory.java", "text": "HttpsServer server = HttpsServer.create(new InetSocketAddress(java.net.InetAddress.getByAddress(new byte[]{127, 0, 0, 1}), port), 0);", "note": "PDP bind (patched, loopback)" }
+  ]
+}

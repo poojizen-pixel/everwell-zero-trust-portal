@@ -1,0 +1,23 @@
+# Generated build output (rebuilt by scripts\demo\demo.ps1 -Action build)
+build/
+
+# The legacy live database and its journal files: never published, never needed (the demo creates a disposable database per run)
+db/*.db
+db/*.db-wal
+db/*.db-shm
+
+# Old keystores / private keys / certificates: the demo generates its own per run, outside the project
+pdp/certs/
+protected_app/certs/
+*.jks
+*.p12
+*.pfx
+*.key
+*.pem
+
+# Compiled programs and logs
+*.exe
+*.log
+
+# Tooling
+node_modules/
